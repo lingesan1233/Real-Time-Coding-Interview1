@@ -23,15 +23,16 @@ export default function CandidateInterviewRoom() {
   const [cameraOn, setCameraOn] = useState(true);
 
   useEffect(() => {
-    socket.emit("join-room", roomId);
+    if (!roomId) return;
 
-    // 🔥 Fetch interview data
+    socket.emit("join-room", roomId);
+    console.log("👨‍💻 Candidate joined:", roomId);
+
     API.get(`/interview/room/${roomId}`).then(res => {
       setTask(res.data.task || "");
       setInterviewId(res.data._id);
     });
 
-    // 🎥 Video setup
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then((stream) => {
         setStream(stream);
@@ -54,7 +55,6 @@ export default function CandidateInterviewRoom() {
         };
       });
 
-    // 🔁 Receive offer
     socket.on("offer", async (offer) => {
       await peer.current.setRemoteDescription(offer);
 
@@ -65,54 +65,56 @@ export default function CandidateInterviewRoom() {
     });
 
     socket.on("ice-candidate", (candidate) => {
-      peer.current.addIceCandidate(candidate);
+      peer.current?.addIceCandidate(candidate);
     });
 
-    // 💻 Code sync
     socket.on("code-update", setCode);
+    socket.on("task-update", setTask);
 
-    // 📝 Task sync
-    socket.on("task-update", (newTask) => {
-      setTask(newTask);
-    });
-
-    // ❌ End call
     socket.on("end-call", () => {
       alert("Call ended by admin");
       navigate("/candidate");
     });
 
-  }, []);
+    return () => {
+      socket.off("offer");
+      socket.off("ice-candidate");
+      socket.off("code-update");
+      socket.off("task-update");
+      socket.off("end-call");
+    };
 
-  // 🎤 Mic toggle
+  }, [roomId]);
+
   const toggleMic = () => {
     if (!stream) return;
     stream.getAudioTracks()[0].enabled = !micOn;
     setMicOn(!micOn);
   };
 
-  // 📷 Camera toggle
   const toggleCamera = () => {
     if (!stream) return;
     stream.getVideoTracks()[0].enabled = !cameraOn;
     setCameraOn(!cameraOn);
   };
 
-  // ❌ Leave call
   const leaveCall = () => {
     socket.emit("end-call", roomId);
     navigate("/candidate");
   };
 
-  // 💻 Code sync
   const handleCodeChange = (value) => {
     setCode(value);
     socket.emit("code-change", { roomId, code: value });
   };
 
-  // 📤 Submit answer
+  // ✅ FINAL CORRECT SUBMIT
   const submit = async () => {
-    if (!interviewId) return alert("Interview not loaded");
+    if (!interviewId) {
+      return alert("Interview not loaded");
+    }
+
+    console.log("📤 Sending solution:", code);
 
     await API.post("/interview/submit", {
       interviewId,
@@ -124,8 +126,7 @@ export default function CandidateInterviewRoom() {
 
   return (
     <div style={{ display: "flex", gap: "20px", padding: "20px" }}>
-
-      {/* 🎥 VIDEO PANEL */}
+      
       <div>
         <h3>Video</h3>
         <video ref={localRef} autoPlay muted width="220" />
@@ -146,10 +147,7 @@ export default function CandidateInterviewRoom() {
         </div>
       </div>
 
-      {/* RIGHT PANEL */}
       <div style={{ flex: 1 }}>
-
-        {/* TASK */}
         <h3>Task</h3>
         <div style={{
           background: "#f5f5f5",
@@ -159,7 +157,6 @@ export default function CandidateInterviewRoom() {
           {task || "Waiting for task..."}
         </div>
 
-        {/* CODE EDITOR */}
         <h3>Write Code</h3>
         <Editor
           height="250px"
@@ -167,22 +164,10 @@ export default function CandidateInterviewRoom() {
           onChange={handleCodeChange}
         />
 
-        {/* SUBMIT */}
         <button onClick={submit}>
           Submit Answer 🚀
         </button>
-
       </div>
     </div>
   );
 }
-const submit = async () => {
-  console.log("Submitting:", code);
-
-  await API.post("/interview/submit", {
-    interviewId,
-    solution: code
-  });
-
-  alert("Submitted ✅");
-};

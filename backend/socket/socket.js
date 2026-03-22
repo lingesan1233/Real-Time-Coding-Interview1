@@ -3,10 +3,10 @@ module.exports = (io) => {
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
-    // ✅ JOIN ROOM
+    // ✅ JOIN ROOM (ONLY HERE)
     socket.on("join-room", (roomId) => {
       socket.join(roomId);
-      console.log("Joined room:", roomId); // 🔥 debug
+      console.log("✅ Joined room:", roomId);
     });
 
     // 🎥 WebRTC signaling

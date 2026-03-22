@@ -26,7 +26,7 @@ export default function AdminInterviewRoom() {
 
     // ✅ Join room
     socket.emit("join-room", roomId);
-    console.log("✅ Admin joined room:", roomId);
+    console.log("🧑‍💻 Admin joined room:", roomId);
 
     // 🔥 Fetch interview
     API.get(`/interview/room/${roomId}`).then(res => {
@@ -62,7 +62,7 @@ export default function AdminInterviewRoom() {
         });
       });
 
-    // ✅ WebRTC listeners
+    // 🎥 WebRTC listeners
     socket.on("answer", (answer) => {
       peer.current?.setRemoteDescription(answer);
     });
@@ -71,20 +71,18 @@ export default function AdminInterviewRoom() {
       peer.current?.addIceCandidate(candidate);
     });
 
-    // ✅ Task update
+    // 📝 Task update
     socket.on("task-update", (newTask) => {
       setTask(newTask);
     });
 
-    // 🔥 FIXED: Candidate submission listener
+    // 🔥 FINAL FIX: Candidate submission listener
     socket.on("solution-submitted", (data) => {
-      console.log("🔥 Received submission:", data);
+      console.log("🔥 ADMIN RECEIVED:", data);
 
       if (data?.solution) {
         setSubmittedCode(data.solution);
         alert("Candidate submitted answer ✅");
-      } else {
-        console.log("❌ Invalid data received");
       }
     });
 
@@ -94,7 +92,7 @@ export default function AdminInterviewRoom() {
       navigate("/admin");
     });
 
-    // ✅ CLEANUP (VERY IMPORTANT)
+    // ✅ CLEANUP
     return () => {
       socket.off("answer");
       socket.off("ice-candidate");
