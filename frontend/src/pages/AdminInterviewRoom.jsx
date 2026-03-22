@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
-import Editor from "@monaco-editor/react";
 import API from "../services/api";
 
 const socket = io("http://localhost:5000");
@@ -14,16 +13,20 @@ export default function AdminInterviewRoom() {
   const remoteRef = useRef();
   const peer = useRef();
 
-  const [code, setCode] = useState("");
   const [task, setTask] = useState("");
   const [submittedCode, setSubmittedCode] = useState("");
   const [interviewId, setInterviewId] = useState("");
+
   const [stream, setStream] = useState(null);
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
 
   useEffect(() => {
+    if (!roomId) return;
+
+    // ✅ Join room
     socket.emit("join-room", roomId);
+    console.log("✅ Admin joined room:", roomId);
 
     // 🔥 Fetch interview
     API.get(`/interview/room/${roomId}`).then(res => {
@@ -59,51 +62,70 @@ export default function AdminInterviewRoom() {
         });
       });
 
-    // Socket listeners
+    // ✅ WebRTC listeners
     socket.on("answer", (answer) => {
-      peer.current.setRemoteDescription(answer);
+      peer.current?.setRemoteDescription(answer);
     });
 
     socket.on("ice-candidate", (candidate) => {
-      peer.current.addIceCandidate(candidate);
+      peer.current?.addIceCandidate(candidate);
     });
 
-    socket.on("code-update", setCode);
-    socket.on("task-update", setTask);
+    // ✅ Task update
+    socket.on("task-update", (newTask) => {
+      setTask(newTask);
+    });
 
+    // 🔥 FIXED: Candidate submission listener
     socket.on("solution-submitted", (data) => {
-      setSubmittedCode(data.solution);
-      alert("Candidate submitted answer ✅");
+      console.log("🔥 Received submission:", data);
+
+      if (data?.solution) {
+        setSubmittedCode(data.solution);
+        alert("Candidate submitted answer ✅");
+      } else {
+        console.log("❌ Invalid data received");
+      }
     });
 
+    // ❌ End call
     socket.on("end-call", () => {
       alert("Call ended");
       navigate("/admin");
     });
 
-  }, []);
+    // ✅ CLEANUP (VERY IMPORTANT)
+    return () => {
+      socket.off("answer");
+      socket.off("ice-candidate");
+      socket.off("task-update");
+      socket.off("solution-submitted");
+      socket.off("end-call");
+    };
 
-  // 🎤 Mic Toggle
+  }, [roomId]);
+
+  // 🎤 Mic toggle
   const toggleMic = () => {
     if (!stream) return;
     stream.getAudioTracks()[0].enabled = !micOn;
     setMicOn(!micOn);
   };
 
-  // 📷 Camera Toggle
+  // 📷 Camera toggle
   const toggleCamera = () => {
     if (!stream) return;
     stream.getVideoTracks()[0].enabled = !cameraOn;
     setCameraOn(!cameraOn);
   };
 
-  // ❌ End Call
+  // ❌ End call
   const endCall = () => {
     socket.emit("end-call", roomId);
     navigate("/admin");
   };
 
-  // 📝 Send Task (REALTIME + SAVE)
+  // 📝 Send task
   const sendTask = async () => {
     socket.emit("task-update", { roomId, task });
 
@@ -111,12 +133,6 @@ export default function AdminInterviewRoom() {
       interviewId,
       task
     });
-  };
-
-  // 💻 Code Sync
-  const handleCodeChange = (value) => {
-    setCode(value);
-    socket.emit("code-change", { roomId, code: value });
   };
 
   return (
@@ -144,7 +160,6 @@ export default function AdminInterviewRoom() {
       {/* RIGHT PANEL */}
       <div style={{ flex: 1 }}>
 
-        {/* TASK */}
         <h3>Assign Task</h3>
         <textarea
           value={task}
@@ -153,13 +168,13 @@ export default function AdminInterviewRoom() {
         />
         <button onClick={sendTask}>Send Task</button>
 
-        {/* LIVE CODE */}
-        <h3>Live Coding</h3>
-        <Editor height="200px" value={code} onChange={handleCodeChange} />
-
-        {/* SUBMISSION */}
-        <h3>Candidate Submission</h3>
-        <pre style={{ background: "#eee", padding: "10px" }}>
+        <h3>Candidate Answer</h3>
+        <pre style={{
+          background: "#f5f5f5",
+          padding: "10px",
+          borderRadius: "8px",
+          minHeight: "150px"
+        }}>
           {submittedCode || "Waiting for submission..."}
         </pre>
 
