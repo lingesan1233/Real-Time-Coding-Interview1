@@ -29,6 +29,9 @@ const io = require("socket.io")(server, {
 // ✅ Initialize socket
 require("./socket/socket")(io);
 
+// 🔥 CRITICAL FIX
+app.set("io", io);
+
 // ✅ Middleware
 app.use(cors());
 app.use(express.json());
@@ -38,7 +41,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/interview", interviewRoutes);
 
-// ✅ Health check route (useful)
+// ✅ Health check
 app.get("/", (req, res) => {
   res.send("Server is running 🚀");
 });
