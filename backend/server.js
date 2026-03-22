@@ -5,7 +5,8 @@ const http = require("http");
 const cors = require("cors");
 const dns = require("node:dns/promises");
 
-dns.setServers(['8.8.8.8'], ['8.8.4.4']);
+// ✅ Fix DNS issue
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const connectDB = require("./config/db");
 const { createDefaultAdmin } = require("./controllers/authController");
@@ -17,29 +18,36 @@ const interviewRoutes = require("./routes/interviewRoutes");
 const app = express();
 const server = http.createServer(app);
 
+// ✅ Socket.io setup
 const io = require("socket.io")(server, {
   cors: {
-    origin: "*"
+    origin: "*",
+    methods: ["GET", "POST", "PUT"]
   }
 });
 
-// Socket init
+// ✅ Initialize socket
 require("./socket/socket")(io);
 
-// Middleware
+// ✅ Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// ✅ Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/interview", interviewRoutes);
 
-// Start
-connectDB().then(() => {
-  createDefaultAdmin();
+// ✅ Health check route (useful)
+app.get("/", (req, res) => {
+  res.send("Server is running 🚀");
+});
 
-  server.listen(process.env.PORT, () => {
-    console.log(`Server running on port ${process.env.PORT}`);
+// ✅ Start server
+connectDB().then(async () => {
+  await createDefaultAdmin();
+
+  server.listen(process.env.PORT || 5000, () => {
+    console.log(`🚀 Server running on port ${process.env.PORT || 5000}`);
   });
 });
