@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 import Editor from "@monaco-editor/react";
+import API from "../services/api";
 
 const socket = io("http://localhost:5000");
 
@@ -15,13 +16,22 @@ export default function AdminInterviewRoom() {
 
   const [code, setCode] = useState("");
   const [task, setTask] = useState("");
+  const [submittedCode, setSubmittedCode] = useState("");
+  const [interviewId, setInterviewId] = useState("");
   const [stream, setStream] = useState(null);
-  const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
+  const [cameraOn, setCameraOn] = useState(true);
 
   useEffect(() => {
     socket.emit("join-room", roomId);
 
+    // 🔥 Fetch interview
+    API.get(`/interview/room/${roomId}`).then(res => {
+      setTask(res.data.task || "");
+      setInterviewId(res.data._id);
+    });
+
+    // 🎥 Video setup
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then((stream) => {
         setStream(stream);
@@ -49,6 +59,7 @@ export default function AdminInterviewRoom() {
         });
       });
 
+    // Socket listeners
     socket.on("answer", (answer) => {
       peer.current.setRemoteDescription(answer);
     });
@@ -60,8 +71,13 @@ export default function AdminInterviewRoom() {
     socket.on("code-update", setCode);
     socket.on("task-update", setTask);
 
+    socket.on("solution-submitted", (data) => {
+      setSubmittedCode(data.solution);
+      alert("Candidate submitted answer ✅");
+    });
+
     socket.on("end-call", () => {
-      alert("Call ended by candidate");
+      alert("Call ended");
       navigate("/admin");
     });
 
@@ -69,12 +85,14 @@ export default function AdminInterviewRoom() {
 
   // 🎤 Mic Toggle
   const toggleMic = () => {
+    if (!stream) return;
     stream.getAudioTracks()[0].enabled = !micOn;
     setMicOn(!micOn);
   };
 
   // 📷 Camera Toggle
   const toggleCamera = () => {
+    if (!stream) return;
     stream.getVideoTracks()[0].enabled = !cameraOn;
     setCameraOn(!cameraOn);
   };
@@ -85,34 +103,67 @@ export default function AdminInterviewRoom() {
     navigate("/admin");
   };
 
-  // 📝 Send Task
-  const sendTask = () => {
+  // 📝 Send Task (REALTIME + SAVE)
+  const sendTask = async () => {
     socket.emit("task-update", { roomId, task });
+
+    await API.put("/interview/start", {
+      interviewId,
+      task
+    });
   };
 
+  // 💻 Code Sync
   const handleCodeChange = (value) => {
     setCode(value);
     socket.emit("code-change", { roomId, code: value });
   };
 
   return (
-    <div>
-      <h2>Admin Interview Room</h2>
+    <div style={{ display: "flex", gap: "20px", padding: "20px" }}>
 
-      <video ref={localRef} autoPlay muted width="200" />
-      <video ref={remoteRef} autoPlay width="200" />
-
+      {/* 🎥 VIDEO */}
       <div>
-        <button onClick={toggleMic}>{micOn ? "Mute Mic" : "Unmute Mic"}</button>
-        <button onClick={toggleCamera}>{cameraOn ? "Turn Off Camera" : "Turn On Camera"}</button>
-        <button onClick={endCall}>End Call ❌</button>
+        <h3>Video</h3>
+        <video ref={localRef} autoPlay muted width="220" />
+        <video ref={remoteRef} autoPlay width="220" />
+
+        <div>
+          <button onClick={toggleMic}>
+            {micOn ? "Mute Mic" : "Unmute Mic"}
+          </button>
+
+          <button onClick={toggleCamera}>
+            {cameraOn ? "Turn Off Camera" : "Turn On Camera"}
+          </button>
+
+          <button onClick={endCall}>End Call ❌</button>
+        </div>
       </div>
 
-      <h3>Assign Task</h3>
-      <textarea value={task} onChange={(e) => setTask(e.target.value)} />
-      <button onClick={sendTask}>Send Task</button>
+      {/* RIGHT PANEL */}
+      <div style={{ flex: 1 }}>
 
-      <Editor height="300px" value={code} onChange={handleCodeChange} />
+        {/* TASK */}
+        <h3>Assign Task</h3>
+        <textarea
+          value={task}
+          onChange={(e) => setTask(e.target.value)}
+          style={{ width: "100%", height: "100px" }}
+        />
+        <button onClick={sendTask}>Send Task</button>
+
+        {/* LIVE CODE */}
+        <h3>Live Coding</h3>
+        <Editor height="200px" value={code} onChange={handleCodeChange} />
+
+        {/* SUBMISSION */}
+        <h3>Candidate Submission</h3>
+        <pre style={{ background: "#eee", padding: "10px" }}>
+          {submittedCode || "Waiting for submission..."}
+        </pre>
+
+      </div>
     </div>
   );
 }

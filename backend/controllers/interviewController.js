@@ -20,14 +20,17 @@ exports.createInterview = async (req, res) => {
   }
 };
 
-// Start Interview
+// ✅ SINGLE CLEAN startInterview (MERGED)
 exports.startInterview = async (req, res) => {
   try {
-    const { interviewId } = req.body;
+    const { interviewId, task } = req.body;
 
     const updated = await Interview.findByIdAndUpdate(
       interviewId,
-      { status: "ongoing" },
+      {
+        status: "ongoing",
+        ...(task && { task }) // ✅ update task if sent
+      },
       { new: true }
     );
 
@@ -50,7 +53,7 @@ exports.getCandidateInterviews = async (req, res) => {
   }
 };
 
-// ✅ Get Interview by RoomId
+// Get Interview by RoomId
 exports.getInterviewByRoom = async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -65,7 +68,7 @@ exports.getInterviewByRoom = async (req, res) => {
   }
 };
 
-// ✅ Submit Solution (REALTIME)
+// Submit Solution (REALTIME)
 exports.submitSolution = async (req, res) => {
   try {
     const { interviewId, solution } = req.body;
@@ -76,9 +79,12 @@ exports.submitSolution = async (req, res) => {
       { new: true }
     );
 
-    // 🔥 send to admin
+    // 🔥 Send to admin instantly
     const io = req.app.get("io");
-    io.to(updated.roomId).emit("solution-submitted", updated.solution);
+    io.to(updated.roomId).emit("solution-submitted", {
+      solution: updated.solution,
+      interviewId: updated._id
+    });
 
     res.json(updated);
   } catch (err) {
