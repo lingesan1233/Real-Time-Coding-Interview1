@@ -1,6 +1,38 @@
 module.exports = (io) => {
+
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
+
+    socket.on("join-room", (roomId) => {
+      socket.join(roomId);
+    });
+
+    // WebRTC signaling
+    socket.on("offer", ({ roomId, offer }) => {
+      socket.to(roomId).emit("offer", offer);
+    });
+
+    socket.on("answer", ({ roomId, answer }) => {
+      socket.to(roomId).emit("answer", answer);
+    });
+
+    socket.on("ice-candidate", ({ roomId, candidate }) => {
+      socket.to(roomId).emit("ice-candidate", candidate);
+    });
+
+    // Live code editor sync
+    socket.on("code-change", ({ roomId, code }) => {
+      socket.to(roomId).emit("code-update", code);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("User disconnected");
+    });
+  });
+
+};
+module.exports = (io) => {
+  io.on("connection", (socket) => {
 
     socket.on("join-room", (roomId) => {
       socket.join(roomId);
@@ -30,8 +62,5 @@ module.exports = (io) => {
       socket.to(roomId).emit("end-call");
     });
 
-    socket.on("disconnect", () => {
-      console.log("User disconnected");
-    });
   });
-};      
+};
