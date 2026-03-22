@@ -20,7 +20,7 @@ exports.createInterview = async (req, res) => {
   }
 };
 
-// ✅ Start Interview
+// Start Interview
 exports.startInterview = async (req, res) => {
   try {
     const { interviewId } = req.body;
@@ -50,7 +50,22 @@ exports.getCandidateInterviews = async (req, res) => {
   }
 };
 
-// Submit Solution
+// ✅ Get Interview by RoomId
+exports.getInterviewByRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    const interview = await Interview.findOne({ roomId })
+      .populate("candidateId", "name email")
+      .populate("adminId", "name email");
+
+    res.json(interview);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching interview" });
+  }
+};
+
+// ✅ Submit Solution (REALTIME)
 exports.submitSolution = async (req, res) => {
   try {
     const { interviewId, solution } = req.body;
@@ -60,6 +75,10 @@ exports.submitSolution = async (req, res) => {
       { solution, status: "completed" },
       { new: true }
     );
+
+    // 🔥 send to admin
+    const io = req.app.get("io");
+    io.to(updated.roomId).emit("solution-submitted", updated.solution);
 
     res.json(updated);
   } catch (err) {

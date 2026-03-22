@@ -1,5 +1,4 @@
 module.exports = (io) => {
-
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
@@ -7,7 +6,6 @@ module.exports = (io) => {
       socket.join(roomId);
     });
 
-    // WebRTC signaling
     socket.on("offer", ({ roomId, offer }) => {
       socket.to(roomId).emit("offer", offer);
     });
@@ -20,14 +18,20 @@ module.exports = (io) => {
       socket.to(roomId).emit("ice-candidate", candidate);
     });
 
-    // Live code editor sync
     socket.on("code-change", ({ roomId, code }) => {
       socket.to(roomId).emit("code-update", code);
+    });
+
+    socket.on("task-update", ({ roomId, task }) => {
+      socket.to(roomId).emit("task-update", task);
+    });
+
+    socket.on("end-call", (roomId) => {
+      socket.to(roomId).emit("end-call");
     });
 
     socket.on("disconnect", () => {
       console.log("User disconnected");
     });
   });
-
-};
+};      
