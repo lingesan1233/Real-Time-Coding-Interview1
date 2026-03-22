@@ -13,96 +13,52 @@ export default function CandidateDashboard() {
     setUser(storedUser);
 
     fetchInterviews();
+
+    // Auto refresh
+    const interval = setInterval(fetchInterviews, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchInterviews = async () => {
-    try {
-      const res = await API.get("/interview/candidate");
-      setInterviews(res.data);
-    } catch (err) {
-      console.log(err);
-    }
+    const res = await API.get("/interview/candidate");
+    setInterviews(res.data);
   };
 
   return (
     <div style={{ padding: "20px" }}>
       <h2>Candidate Dashboard</h2>
 
-      {/* ================= PROFILE ================= */}
       {user && (
-        <div style={{ marginBottom: "20px" }}>
-          <h3>My Profile</h3>
-          <p><strong>Name:</strong> {user.name}</p>
-          <p><strong>Email:</strong> {user.email}</p>
+        <>
+          <h3>Profile</h3>
+          <p>{user.name}</p>
+          <p>{user.email}</p>
+        </>
+      )}
+
+      <h3>Interviews</h3>
+
+      {interviews.map((i) => (
+        <div key={i._id} style={{ border: "1px solid", margin: 10, padding: 10 }}>
+          <p>Task: {i.task}</p>
+          <p>Status: {i.status}</p>
+          <p>Interviewer: {i.adminId?.name}</p>
+
+          {i.status === "ongoing" && (
+            <button onClick={() => navigate(`/candidate-room/${i.roomId}`)}>
+              Join Now 🎥
+            </button>
+          )}
+
+          {i.status === "scheduled" && (
+            <p>Waiting for admin...</p>
+          )}
+
+          {i.status === "completed" && (
+            <p>Completed</p>
+          )}
         </div>
-      )}
-
-      {/* ================= INTERVIEWS ================= */}
-      <h3>My Interviews</h3>
-
-      {interviews.length === 0 ? (
-        <p>No interviews assigned</p>
-      ) : (
-        interviews.map((i) => (
-          <div
-            key={i._id}
-            style={{
-              border: "1px solid #ccc",
-              padding: "15px",
-              marginBottom: "15px",
-              borderRadius: "8px"
-            }}
-          >
-            <p><strong>Task:</strong> {i.task}</p>
-
-            <p>
-              <strong>Status:</strong>{" "}
-              <span
-                style={{
-                  color:
-                    i.status === "completed"
-                      ? "green"
-                      : i.status === "ongoing"
-                      ? "blue"
-                      : "orange"
-                }}
-              >
-                {i.status}
-              </span>
-            </p>
-
-            <p>
-              <strong>Interviewer:</strong>{" "}
-              {i.adminId?.name || "Admin"}
-            </p>
-
-            {/* ✅ Join button only if ongoing */}
-            {i.status === "ongoing" && (
-              <button
-                onClick={() =>
-                  navigate(`/candidate-room/${i.roomId}`)
-                }
-              >
-                Join Now 🎥
-              </button>
-            )}
-
-            {/* ⏳ Scheduled */}
-            {i.status === "scheduled" && (
-              <p style={{ color: "gray" }}>
-                Waiting for admin to start interview...
-              </p>
-            )}
-
-            {/* ✅ Completed */}
-            {i.status === "completed" && (
-              <p style={{ color: "green" }}>
-                Interview completed
-              </p>
-            )}
-          </div>
-        ))
-      )}
+      ))}
     </div>
   );
 }

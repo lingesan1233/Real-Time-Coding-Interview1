@@ -15,54 +15,47 @@ export default function AdminDashboard() {
 
   const navigate = useNavigate();
 
-  // 🔄 Fetch candidates
+  // Fetch candidates
   const fetchCandidates = async () => {
-    try {
-      const res = await API.get("/admin/candidates");
-      setCandidates(res.data);
-    } catch (err) {
-      console.log(err);
-    }
+    const res = await API.get("/admin/candidates");
+    setCandidates(res.data);
   };
 
   useEffect(() => {
     fetchCandidates();
   }, []);
 
-  // ➕ Create Candidate (REAL USER ONLY)
+  // Create candidate
   const createCandidate = async () => {
     if (!form.name || !form.email || !form.password) {
-      return alert("Please fill all fields");
+      return alert("Fill all fields");
     }
 
-    try {
-      await API.post("/admin/create-candidate", form);
+    await API.post("/admin/create-candidate", form);
+    alert("Candidate created");
 
-      alert("Candidate created successfully ✅");
-
-      setForm({ name: "", email: "", password: "" });
-      fetchCandidates();
-    } catch (err) {
-      alert("Error creating candidate");
-    }
+    setForm({ name: "", email: "", password: "" });
+    fetchCandidates();
   };
 
-  // 🎥 Start Interview
+  // ✅ START INTERVIEW (FINAL FIX)
   const startInterview = async () => {
-    if (!selectedCandidate) {
-      return alert("Please select a candidate");
-    }
-
-    if (!task) {
-      return alert("Please enter interview task");
-    }
+    if (!selectedCandidate) return alert("Select candidate");
+    if (!task) return alert("Enter task");
 
     try {
+      // 1. Create interview
       const res = await API.post("/interview/create", {
         candidateId: selectedCandidate._id,
         task
       });
 
+      // 2. Update to ongoing
+      await API.put("/interview/start", {
+        interviewId: res.data._id
+      });
+
+      // 3. Navigate
       navigate(`/admin-room/${res.data.roomId}`);
     } catch (err) {
       alert("Error starting interview");
@@ -73,105 +66,61 @@ export default function AdminDashboard() {
     <div style={{ padding: "20px" }}>
       <h2>Admin Dashboard</h2>
 
-      {/* ================= CREATE CANDIDATE ================= */}
-      <div style={{ marginBottom: "30px" }}>
-        <h3>Create Candidate</h3>
+      <h3>Create Candidate</h3>
+      <input
+        placeholder="Name"
+        value={form.name}
+        onChange={(e) =>
+          setForm({ ...form, name: e.target.value })
+        }
+      />
+      <input
+        placeholder="Email"
+        value={form.email}
+        onChange={(e) =>
+          setForm({ ...form, email: e.target.value })
+        }
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={form.password}
+        onChange={(e) =>
+          setForm({ ...form, password: e.target.value })
+        }
+      />
+      <button onClick={createCandidate}>Create</button>
 
-        <input
-          type="text"
-          placeholder="Enter Name"
-          value={form.name}
-          onChange={(e) =>
-            setForm({ ...form, name: e.target.value })
-          }
-        />
-
-        <br /><br />
-
-        <input
-          type="email"
-          placeholder="Enter Email"
-          value={form.email}
-          onChange={(e) =>
-            setForm({ ...form, email: e.target.value })
-          }
-        />
-
-        <br /><br />
-
-        <input
-          type="password"
-          placeholder="Enter Password"
-          value={form.password}
-          onChange={(e) =>
-            setForm({ ...form, password: e.target.value })
-          }
-        />
-
-        <br /><br />
-
-        <button onClick={createCandidate}>
-          Create Candidate
-        </button>
-      </div>
-
-      {/* ================= CANDIDATE LIST ================= */}
-      <div style={{ marginBottom: "30px" }}>
-        <h3>Candidate List</h3>
-
-        {candidates.length === 0 ? (
-          <p>No candidates available</p>
-        ) : (
-          candidates.map((c) => (
-            <div
-              key={c._id}
-              style={{
-                border: "1px solid #ccc",
-                padding: "10px",
-                marginBottom: "10px",
-                cursor: "pointer",
-                borderRadius: "8px",
-                background:
-                  selectedCandidate?._id === c._id
-                    ? "#d4edda"
-                    : "#fff"
-              }}
-              onClick={() => setSelectedCandidate(c)}
-            >
-              <p><strong>{c.name}</strong></p>
-              <p>{c.email}</p>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* ================= START INTERVIEW ================= */}
-      <div>
-        <h3>Start Interview</h3>
-
-        {selectedCandidate && (
-          <p>
-            Selected Candidate:{" "}
-            <strong>{selectedCandidate.name}</strong>
-          </p>
-        )}
-
-        <textarea
-          placeholder="Enter Interview Task"
-          value={task}
-          onChange={(e) => setTask(e.target.value)}
+      <h3>Candidate List</h3>
+      {candidates.map((c) => (
+        <div
+          key={c._id}
+          onClick={() => setSelectedCandidate(c)}
           style={{
-            width: "300px",
-            height: "100px"
+            border: "1px solid",
+            margin: "10px",
+            padding: "10px",
+            cursor: "pointer",
+            background:
+              selectedCandidate?._id === c._id
+                ? "#d4edda"
+                : "#fff"
           }}
-        />
+        >
+          {c.name} - {c.email}
+        </div>
+      ))}
 
-        <br /><br />
-
-        <button onClick={startInterview}>
-          Start Meeting 🎥
-        </button>
-      </div>
+      <h3>Start Interview</h3>
+      <textarea
+        placeholder="Task"
+        value={task}
+        onChange={(e) => setTask(e.target.value)}
+      />
+      <br />
+      <button onClick={startInterview}>
+        Start Meeting 🎥
+      </button>
     </div>
   );
 }

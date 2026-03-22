@@ -20,7 +20,24 @@ exports.createInterview = async (req, res) => {
   }
 };
 
-// Get Candidate Interviews (WITH ADMIN DETAILS)
+// ✅ Start Interview
+exports.startInterview = async (req, res) => {
+  try {
+    const { interviewId } = req.body;
+
+    const updated = await Interview.findByIdAndUpdate(
+      interviewId,
+      { status: "ongoing" },
+      { new: true }
+    );
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ msg: "Error starting interview" });
+  }
+};
+
+// Get Candidate Interviews
 exports.getCandidateInterviews = async (req, res) => {
   try {
     const interviews = await Interview.find({
