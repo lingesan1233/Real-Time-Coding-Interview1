@@ -4,7 +4,7 @@ import io from "socket.io-client";
 import Editor from "@monaco-editor/react";
 import API from "../services/api";
 
-const socket = io("http://localhost:5000");
+const socket = io("https://real-time-coding-interview1.onrender.com");
 
 export default function CandidateInterviewRoom() {
   const { roomId } = useParams();
@@ -26,7 +26,6 @@ export default function CandidateInterviewRoom() {
     if (!roomId) return;
 
     socket.emit("join-room", roomId);
-    console.log("👨‍💻 Candidate joined:", roomId);
 
     API.get(`/interview/room/${roomId}`).then(res => {
       setTask(res.data.task || "");
@@ -72,7 +71,6 @@ export default function CandidateInterviewRoom() {
     socket.on("task-update", setTask);
 
     socket.on("end-call", () => {
-      alert("Call ended by admin");
       navigate("/candidate");
     });
 
@@ -108,13 +106,8 @@ export default function CandidateInterviewRoom() {
     socket.emit("code-change", { roomId, code: value });
   };
 
-  // ✅ FINAL CORRECT SUBMIT
   const submit = async () => {
-    if (!interviewId) {
-      return alert("Interview not loaded");
-    }
-
-    console.log("📤 Sending solution:", code);
+    if (!interviewId) return alert("Interview not loaded");
 
     await API.post("/interview/submit", {
       interviewId,
@@ -125,49 +118,153 @@ export default function CandidateInterviewRoom() {
   };
 
   return (
-    <div style={{ display: "flex", gap: "20px", padding: "20px" }}>
-      
-      <div>
-        <h3>Video</h3>
-        <video ref={localRef} autoPlay muted width="220" />
-        <video ref={remoteRef} autoPlay width="220" />
+    <div style={styles.container}>
 
-        <div>
-          <button onClick={toggleMic}>
-            {micOn ? "Mute Mic" : "Unmute Mic"}
+      {/* 🎥 VIDEO SECTION */}
+      <div style={styles.videoSection}>
+
+        <div style={styles.videoBox}>
+          <video ref={localRef} autoPlay muted style={styles.video} />
+          <span style={styles.label}>You</span>
+        </div>
+
+        <div style={styles.videoBox}>
+          <video ref={remoteRef} autoPlay style={styles.video} />
+          <span style={styles.label}>Interviewer</span>
+        </div>
+
+        {/* CONTROLS */}
+        <div style={styles.controls}>
+          <button style={styles.controlBtn} onClick={toggleMic}>
+            {micOn ? "🎤" : "🔇"}
           </button>
 
-          <button onClick={toggleCamera}>
-            {cameraOn ? "Turn Off Camera" : "Turn On Camera"}
+          <button style={styles.controlBtn} onClick={toggleCamera}>
+            {cameraOn ? "📷" : "🚫"}
           </button>
 
-          <button onClick={leaveCall}>
-            Leave Call ❌
+          <button style={styles.endBtn} onClick={leaveCall}>
+            Leave ❌
           </button>
         </div>
       </div>
 
-      <div style={{ flex: 1 }}>
+      {/* 💻 RIGHT PANEL */}
+      <div style={styles.panel}>
+
         <h3>Task</h3>
-        <div style={{
-          background: "#f5f5f5",
-          padding: "10px",
-          borderRadius: "8px"
-        }}>
+        <div style={styles.taskBox}>
           {task || "Waiting for task..."}
         </div>
 
-        <h3>Write Code</h3>
-        <Editor
-          height="250px"
-          value={code}
-          onChange={handleCodeChange}
-        />
+        <h3>Code Editor</h3>
+        <div style={styles.editorWrapper}>
+          <Editor
+            height="250px"
+            value={code}
+            onChange={handleCodeChange}
+            theme="vs-dark"
+          />
+        </div>
 
-        <button onClick={submit}>
+        <button style={styles.submitBtn} onClick={submit}>
           Submit Answer 🚀
         </button>
+
       </div>
     </div>
   );
 }
+
+const styles = {
+  container: {
+    display: "flex",
+    height: "100vh",
+    fontFamily: "Poppins, sans-serif",
+    background: "#f4f6f9"
+  },
+
+  videoSection: {
+    flex: 2,
+    background: "#1e1e1e",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "20px"
+  },
+
+  videoBox: {
+    position: "relative"
+  },
+
+  video: {
+    width: "320px",
+    height: "220px",
+    borderRadius: "12px",
+    background: "#000"
+  },
+
+  label: {
+    position: "absolute",
+    bottom: "8px",
+    left: "10px",
+    color: "#fff",
+    fontSize: "12px"
+  },
+
+  controls: {
+    display: "flex",
+    gap: "15px"
+  },
+
+  controlBtn: {
+    padding: "12px",
+    borderRadius: "50%",
+    border: "none",
+    fontSize: "18px",
+    cursor: "pointer",
+    background: "#2d2d2d",
+    color: "#fff"
+  },
+
+  endBtn: {
+    padding: "12px 20px",
+    borderRadius: "25px",
+    border: "none",
+    background: "#ff4b2b",
+    color: "#fff",
+    cursor: "pointer"
+  },
+
+  panel: {
+    flex: 1,
+    padding: "20px",
+    background: "#fff",
+    overflowY: "auto"
+  },
+
+  taskBox: {
+    background: "#f5f5f5",
+    padding: "12px",
+    borderRadius: "10px",
+    marginBottom: "20px"
+  },
+
+  editorWrapper: {
+    borderRadius: "10px",
+    overflow: "hidden",
+    marginBottom: "20px"
+  },
+
+  submitBtn: {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "10px",
+    border: "none",
+    background: "#ff4b2b",
+    color: "#fff",
+    fontWeight: "600",
+    cursor: "pointer"
+  }
+};

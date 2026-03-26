@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 import API from "../services/api";
 
-const socket = io("http://localhost:5000");
+const socket = io("https://real-time-coding-interview1.onrender.com");
 
 export default function AdminInterviewRoom() {
   const { roomId } = useParams();
@@ -24,17 +24,13 @@ export default function AdminInterviewRoom() {
   useEffect(() => {
     if (!roomId) return;
 
-    // ✅ Join room
     socket.emit("join-room", roomId);
-    console.log("🧑‍💻 Admin joined room:", roomId);
 
-    // 🔥 Fetch interview
     API.get(`/interview/room/${roomId}`).then(res => {
       setTask(res.data.task || "");
       setInterviewId(res.data._id);
     });
 
-    // 🎥 Video setup
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then((stream) => {
         setStream(stream);
@@ -62,7 +58,6 @@ export default function AdminInterviewRoom() {
         });
       });
 
-    // 🎥 WebRTC listeners
     socket.on("answer", (answer) => {
       peer.current?.setRemoteDescription(answer);
     });
@@ -71,28 +66,18 @@ export default function AdminInterviewRoom() {
       peer.current?.addIceCandidate(candidate);
     });
 
-    // 📝 Task update
-    socket.on("task-update", (newTask) => {
-      setTask(newTask);
-    });
+    socket.on("task-update", setTask);
 
-    // 🔥 FINAL FIX: Candidate submission listener
     socket.on("solution-submitted", (data) => {
-      console.log("🔥 ADMIN RECEIVED:", data);
-
       if (data?.solution) {
         setSubmittedCode(data.solution);
-        alert("Candidate submitted answer ✅");
       }
     });
 
-    // ❌ End call
     socket.on("end-call", () => {
-      alert("Call ended");
       navigate("/admin");
     });
 
-    // ✅ CLEANUP
     return () => {
       socket.off("answer");
       socket.off("ice-candidate");
@@ -103,27 +88,23 @@ export default function AdminInterviewRoom() {
 
   }, [roomId]);
 
-  // 🎤 Mic toggle
   const toggleMic = () => {
     if (!stream) return;
     stream.getAudioTracks()[0].enabled = !micOn;
     setMicOn(!micOn);
   };
 
-  // 📷 Camera toggle
   const toggleCamera = () => {
     if (!stream) return;
     stream.getVideoTracks()[0].enabled = !cameraOn;
     setCameraOn(!cameraOn);
   };
 
-  // ❌ End call
   const endCall = () => {
     socket.emit("end-call", roomId);
     navigate("/admin");
   };
 
-  // 📝 Send task
   const sendTask = async () => {
     socket.emit("task-update", { roomId, task });
 
@@ -134,49 +115,160 @@ export default function AdminInterviewRoom() {
   };
 
   return (
-    <div style={{ display: "flex", gap: "20px", padding: "20px" }}>
+    <div style={styles.container}>
 
-      {/* 🎥 VIDEO */}
-      <div>
-        <h3>Video</h3>
-        <video ref={localRef} autoPlay muted width="220" />
-        <video ref={remoteRef} autoPlay width="220" />
+      {/* VIDEO SECTION */}
+      <div style={styles.videoSection}>
 
-        <div>
-          <button onClick={toggleMic}>
-            {micOn ? "Mute Mic" : "Unmute Mic"}
+        <div style={styles.videoBox}>
+          <video ref={localRef} autoPlay muted style={styles.video} />
+          <span style={styles.label}>You</span>
+        </div>
+
+        <div style={styles.videoBox}>
+          <video ref={remoteRef} autoPlay style={styles.video} />
+          <span style={styles.label}>Candidate</span>
+        </div>
+
+        {/* CONTROLS */}
+        <div style={styles.controls}>
+          <button style={styles.controlBtn} onClick={toggleMic}>
+            {micOn ? "🎤" : "🔇"}
           </button>
 
-          <button onClick={toggleCamera}>
-            {cameraOn ? "Turn Off Camera" : "Turn On Camera"}
+          <button style={styles.controlBtn} onClick={toggleCamera}>
+            {cameraOn ? "📷" : "🚫"}
           </button>
 
-          <button onClick={endCall}>End Call ❌</button>
+          <button style={styles.endBtn} onClick={endCall}>
+            End ❌
+          </button>
         </div>
       </div>
 
       {/* RIGHT PANEL */}
-      <div style={{ flex: 1 }}>
+      <div style={styles.panel}>
 
         <h3>Assign Task</h3>
+
         <textarea
           value={task}
           onChange={(e) => setTask(e.target.value)}
-          style={{ width: "100%", height: "100px" }}
+          style={styles.textarea}
         />
-        <button onClick={sendTask}>Send Task</button>
+
+        <button style={styles.primaryBtn} onClick={sendTask}>
+          Send Task 🚀
+        </button>
 
         <h3>Candidate Answer</h3>
-        <pre style={{
-          background: "#f5f5f5",
-          padding: "10px",
-          borderRadius: "8px",
-          minHeight: "150px"
-        }}>
+
+        <div style={styles.codeBox}>
           {submittedCode || "Waiting for submission..."}
-        </pre>
+        </div>
 
       </div>
     </div>
   );
 }
+
+const styles = {
+  container: {
+    display: "flex",
+    height: "100vh",
+    fontFamily: "Poppins, sans-serif",
+    background: "#f4f6f9"
+  },
+
+  videoSection: {
+    flex: 2,
+    background: "#1e1e1e",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "20px"
+  },
+
+  videoBox: {
+    position: "relative"
+  },
+
+  video: {
+    width: "320px",
+    height: "220px",
+    borderRadius: "12px",
+    background: "#000"
+  },
+
+  label: {
+    position: "absolute",
+    bottom: "8px",
+    left: "10px",
+    color: "#fff",
+    fontSize: "12px"
+  },
+
+  controls: {
+    display: "flex",
+    gap: "15px",
+    marginTop: "10px"
+  },
+
+  controlBtn: {
+    padding: "12px",
+    borderRadius: "50%",
+    border: "none",
+    fontSize: "18px",
+    cursor: "pointer",
+    background: "#2d2d2d",
+    color: "#fff"
+  },
+
+  endBtn: {
+    padding: "12px 20px",
+    borderRadius: "25px",
+    border: "none",
+    background: "#ff4b2b",
+    color: "#fff",
+    cursor: "pointer"
+  },
+
+  panel: {
+    flex: 1,
+    padding: "20px",
+    background: "#fff",
+    overflowY: "auto"
+  },
+
+  textarea: {
+    width: "100%",
+    height: "120px",
+    padding: "12px",
+    borderRadius: "10px",
+    border: "1px solid #ddd",
+    marginBottom: "10px"
+  },
+
+  primaryBtn: {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "10px",
+    border: "none",
+    background: "#ff4b2b",
+    color: "#fff",
+    fontWeight: "600",
+    cursor: "pointer",
+    marginBottom: "20px"
+  },
+
+  codeBox: {
+    background: "#1e1e1e",
+    color: "#0f0",
+    padding: "15px",
+    borderRadius: "10px",
+    minHeight: "200px",
+    fontFamily: "monospace",
+    overflowX: "auto"
+  }
+};
